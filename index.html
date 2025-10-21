@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to Snippet IMG College</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle at top, #f0f4ff, #cbd5f5);
+      color: #1f2937;
+    }
+
+    main {
+      text-align: center;
+      background: rgba(255, 255, 255, 0.85);
+      padding: 3rem 4rem;
+      border-radius: 1.5rem;
+      box-shadow: 0 30px 60px rgba(79, 70, 229, 0.2);
+      max-width: 40rem;
+    }
+
+    h1 {
+      font-size: clamp(2.5rem, 5vw, 3.5rem);
+      margin-bottom: 1rem;
+      color: #4338ca;
+    }
+
+    p {
+      font-size: clamp(1.125rem, 3vw, 1.5rem);
+      line-height: 1.6;
+    }
+
+    .cta {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-top: 2rem;
+      padding: 0.85rem 1.75rem;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: white;
+      border-radius: 999px;
+      font-weight: 600;
+      text-decoration: none;
+      box-shadow: 0 20px 40px rgba(99, 102, 241, 0.35);
+      transition: transform 150ms ease, box-shadow 150ms ease;
+    }
+
+    .cta:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 24px 50px rgba(99, 102, 241, 0.45);
+    }
+
+    .cta svg {
+      width: 1.25rem;
+      height: 1.25rem;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Welcome to Snippet IMG College</h1>
+    <p>
+      Explore creative coding snippets, image experiments, and interactive demos built for curious minds.
+    </p>
+    <a class="cta" href="#start">
+      <span>Start Exploring</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <path d="M5 12h14" stroke-linecap="round" stroke-linejoin="round" />
+        <path d="M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+    </a>
+  </main>
+</body>
+</html>
