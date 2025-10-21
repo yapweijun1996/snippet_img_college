@@ -495,7 +495,16 @@
     const pos = [];
     const innerW = (n) => W - hgap * Math.max(0, n - 1);
     const EPS2 = 1e-6;
-    function pushIdx(idx, x, y, w, h){ pos.push({ idx, x: Math.round(x), y: Math.round(y), width: Math.max(0, Math.round(w)), height: Math.max(0, Math.round(h)) }); }
+    function pushIdx(idx, x, y, w, h, target){
+      const list = Array.isArray(target) ? target : pos;
+      list.push({
+        idx,
+        x: Math.round(x),
+        y: Math.round(y),
+        width: Math.max(0, Math.round(w)),
+        height: Math.max(0, Math.round(h))
+      });
+    }
 
     if (N === 1) {
       const a = Math.max(EPS2, aspects[0]);
@@ -553,43 +562,225 @@
     }
 
     if (N === 4) {
-      const pairs = [ [ [0,1],[2,3] ], [ [0,2],[1,3] ], [ [0,3],[1,2] ] ];
-      let best = null;
-      for (const [[a,b],[c,d]] of pairs) {
-        const s1 = aspects[a] + aspects[b];
-        const s2 = aspects[c] + aspects[d];
-        const diff = Math.abs(s1 - s2);
-        if (!best || diff < best.diff) best = {rows:[[a,b],[c,d]]};
+      const gapH = Math.max(0, hgap);
+      const gapV = Math.max(0, vgap);
+      const hgapI = Math.max(0, Math.round(gapH));
+      const vgapI = Math.max(0, Math.round(gapV));
+
+      function computeContainCoverage(layout){
+        if (!Array.isArray(layout) || layout.length !== N) return null;
+        let tileArea = 0;
+        let imgArea = 0;
+        for (const tile of layout) {
+          if (!tile) return null;
+          const { width, height, idx } = tile;
+          if (!(width >= 0 && height >= 0 && Number.isFinite(width) && Number.isFinite(height))) return null;
+          const areaTile = width * height;
+          tileArea += areaTile;
+          const aspect = Math.max(EPS2, aspects[idx]);
+          if (height === 0 || width === 0) continue;
+          const tileAspect = width / height;
+          let imgW, imgH;
+          if (tileAspect >= aspect) {
+            imgH = height;
+            imgW = height * aspect;
+          } else {
+            imgW = width;
+            imgH = width / aspect;
+          }
+          imgArea += Math.max(0, imgW * imgH);
+        }
+        const containerArea = Math.max(EPS2, W * H);
+        const coverage = imgArea / containerArea;
+        const fill = tileArea / containerArea;
+        return { layout, coverage, fill };
       }
-      const [[r1a, r1b],[r2a, r2b]] = best.rows;
-      const iw = innerW(2);
 
-      // Base heights (float)
-      const h1F = iw / Math.max(EPS2, aspects[r1a] + aspects[r1b]);
-      const h2F = iw / Math.max(EPS2, aspects[r2a] + aspects[r2b]);
-      const alpha = (H - vgap) / Math.max(EPS2, h1F + h2F);
-      const H1F = h1F * alpha, H2F = h2F * alpha;
+      function layoutGrid2x2(){
+        const grid = [];
+        const pairs = [ [ [0,1],[2,3] ], [ [0,2],[1,3] ], [ [0,3],[1,2] ] ];
+        let best = null;
+        for (const [[a,b],[c,d]] of pairs) {
+          const s1 = aspects[a] + aspects[b];
+          const s2 = aspects[c] + aspects[d];
+          const diff = Math.abs(s1 - s2);
+          if (!best || diff < best.diff) best = { rows: [[a,b],[c,d]], diff };
+        }
+        if (!best) return grid;
+        const [[r1a, r1b],[r2a, r2b]] = best.rows;
+        const iw = Math.max(0, Math.round(innerW(2)));
 
-      // Quantize heights to sum exactly
-      const heightsI = _quantizeToSum([H1F, H2F], H - vgap);
-      const H1I = Math.max(1, heightsI[0]), H2I = Math.max(1, heightsI[1]);
+        const h1F = iw / Math.max(EPS2, aspects[r1a] + aspects[r1b]);
+        const h2F = iw / Math.max(EPS2, aspects[r2a] + aspects[r2b]);
+        const alpha = Math.max(EPS2, H - gapV) / Math.max(EPS2, h1F + h2F);
+        const H1F = h1F * alpha;
+        const H2F = h2F * alpha;
 
-      // Row 1 widths quantized to innerW
-      const w1F = [aspects[r1a]*H1I, aspects[r1b]*H1I];
-      const w1I = _quantizeToSum(w1F, iw);
+        const heightsI = _quantizeToSum([H1F, H2F], Math.max(0, Math.round(H - gapV)));
+        if (heightsI.length < 2 || heightsI[0] <= 0 || heightsI[1] <= 0) return [];
+        const H1I = heightsI[0];
+        const H2I = heightsI[1];
 
-      // Row 2 widths quantized to innerW
-      const w2F = [aspects[r2a]*H2I, aspects[r2b]*H2I];
-      const w2I = _quantizeToSum(w2F, iw);
+        const w1F = [aspects[r1a] * H1I, aspects[r1b] * H1I];
+        const w1I = _quantizeToSum(w1F, iw);
+        if (w1I.length < 2 || w1I[0] <= 0 || w1I[1] <= 0) return [];
+        const w2F = [aspects[r2a] * H2I, aspects[r2b] * H2I];
+        const w2I = _quantizeToSum(w2F, iw);
+        if (w2I.length < 2 || w2I[0] <= 0 || w2I[1] <= 0) return [];
 
-      let x1 = 0; const y1 = 0;
-      pushIdx(r1a, x1, y1, w1I[0], H1I); x1 += w1I[0] + hgap;
-      pushIdx(r1b, x1, y1, w1I[1], H1I);
+        let x1 = 0; const y1 = 0;
+        pushIdx(r1a, x1, y1, w1I[0], H1I, grid); x1 += w1I[0] + hgapI;
+        pushIdx(r1b, x1, y1, w1I[1], H1I, grid);
 
-      let x2 = 0; const y2 = y1 + H1I + vgap;
-      pushIdx(r2a, x2, y2, w2I[0], H2I); x2 += w2I[0] + hgap;
-      pushIdx(r2b, x2, y2, w2I[1], H2I);
-      return pos;
+        let x2 = 0; const y2 = y1 + H1I + vgapI;
+        pushIdx(r2a, x2, y2, w2I[0], H2I, grid); x2 += w2I[0] + hgapI;
+        pushIdx(r2b, x2, y2, w2I[1], H2I, grid);
+        return grid;
+      }
+
+      function layoutSingleRow(){
+        const row = [];
+        const n = aspects.length;
+        const inner = Math.max(0, W - gapH * Math.max(0, n - 1));
+        if (!(inner > 0)) return row;
+        const sumA = aspects.reduce((s, a) => s + Math.max(EPS2, a), 0);
+        const idealH = Math.min(H, inner / Math.max(EPS2, sumA));
+        if (!(idealH > 0)) return row;
+        const hI = Math.max(1, Math.round(Math.min(H, idealH)));
+        const widthsF = aspects.map(a => Math.max(EPS2, a) * hI);
+        let sumW = widthsF.reduce((s, w) => s + w, 0);
+        const limit = Math.max(1, Math.round(inner));
+        if (sumW > limit) {
+          const scale = limit / sumW;
+          for (let i = 0; i < widthsF.length; i++) widthsF[i] *= scale;
+          sumW = widthsF.reduce((s, w) => s + w, 0);
+        }
+        const target = Math.max(1, Math.min(limit, Math.round(sumW)));
+        const widthsI = _quantizeToSum(widthsF, target);
+        if (widthsI.length !== n || widthsI.some(w => w <= 0)) return [];
+        const totalRowW = widthsI.reduce((s, w) => s + w, 0) + hgapI * Math.max(0, n - 1);
+        const xStart = Math.round(Math.max(0, (W - totalRowW) / 2));
+        const yStart = Math.round(Math.max(0, (H - hI) / 2));
+        let x = xStart;
+        for (let i = 0; i < n; i++) {
+          pushIdx(i, x, yStart, widthsI[i], hI, row);
+          x += widthsI[i] + hgapI;
+        }
+        return row;
+      }
+
+      function permute3(groups){
+        if (!Array.isArray(groups) || groups.length !== 3) return [];
+        const [a,b,c] = groups;
+        return [
+          [a,b,c], [a,c,b],
+          [b,a,c], [b,c,a],
+          [c,a,b], [c,b,a]
+        ];
+      }
+
+      function layoutColumns(groups){
+        if (!Array.isArray(groups) || !groups.length) return [];
+        const cols = [];
+        const availWidth = W - gapH * Math.max(0, groups.length - 1);
+        if (!(availWidth > 0)) return cols;
+        const widthsF = groups.map(col => {
+          const effectiveHf = H - gapV * Math.max(0, col.length - 1);
+          if (!(effectiveHf > 0)) return 0;
+          const denom = col.reduce((s, idx) => s + 1 / Math.max(EPS2, aspects[idx]), 0);
+          if (!(denom > 0)) return 0;
+          return effectiveHf / denom;
+        });
+        let sumWF = widthsF.reduce((s, w) => s + w, 0);
+        if (!(sumWF > 0)) return cols;
+        const scale = Math.min(1, availWidth / sumWF);
+        const widthsAdj = widthsF.map(w => w * scale);
+        const widthsI = widthsAdj.map(w => Math.max(0, Math.round(w)));
+        if (widthsI.some(w => w <= 0)) return [];
+        const limit = Math.max(1, Math.round(availWidth));
+        let total = widthsI.reduce((s, w) => s + w, 0);
+        if (total > limit) {
+          const order = widthsAdj.map((w, i) => ({ i, w })).sort((a, b) => b.w - a.w);
+          let ptr = 0;
+          while (total > limit && ptr < order.length * 3) {
+            const idx = order[ptr % order.length].i;
+            if (widthsI[idx] > 1) {
+              widthsI[idx] -= 1;
+              total -= 1;
+            }
+            ptr++;
+          }
+          if (total > limit) return [];
+        }
+        const usedWidth = total + hgapI * Math.max(0, groups.length - 1);
+        const xStart = Math.round(Math.max(0, (W - usedWidth) / 2));
+        let x = xStart;
+        for (let c = 0; c < groups.length; c++) {
+          const colIdxs = groups[c];
+          const width = widthsI[c];
+          const effectiveHf = Math.max(0, H - gapV * Math.max(0, colIdxs.length - 1));
+          const effectiveH = Math.max(0, Math.round(effectiveHf));
+          if (!(effectiveH > 0)) return [];
+          if (effectiveH < colIdxs.length) return [];
+          const heightsF = colIdxs.map(idx => width / Math.max(EPS2, aspects[idx]));
+          const heightsI = _quantizeToSum(heightsF, effectiveH);
+          if (heightsI.length !== colIdxs.length || heightsI.some(h => h <= 0)) return [];
+          let y = 0;
+          for (let r = 0; r < colIdxs.length; r++) {
+            const idx = colIdxs[r];
+            pushIdx(idx, x, y, width, heightsI[r], cols);
+            y += heightsI[r] + vgapI;
+          }
+          x += width + hgapI;
+        }
+        return cols;
+      }
+
+      function generateColumnLayouts(){
+        const layouts = [];
+        const indices = [0,1,2,3];
+        for (let i = 0; i < indices.length; i++) {
+          for (let j = i + 1; j < indices.length; j++) {
+            const stackBase = [indices[i], indices[j]];
+            const singles = indices.filter(idx => idx !== indices[i] && idx !== indices[j]);
+            const stackOrders = [stackBase, [stackBase[1], stackBase[0]]];
+            for (const stack of stackOrders) {
+              const baseGroups = [ [singles[0]], [singles[1]], stack ];
+              for (const perm of permute3(baseGroups)) {
+                const layout = layoutColumns(perm);
+                if (layout.length === N) layouts.push(layout);
+              }
+            }
+          }
+        }
+        return layouts;
+      }
+
+      const candidates = [];
+      const grid2x2 = layoutGrid2x2();
+      if (grid2x2.length === N) {
+        const stats = computeContainCoverage(grid2x2);
+        if (stats) { stats.tag = 'grid2x2'; candidates.push(stats); }
+      }
+      const singleRow = layoutSingleRow();
+      if (singleRow.length === N) {
+        const stats = computeContainCoverage(singleRow);
+        if (stats) { stats.tag = 'singleRow'; candidates.push(stats); }
+      }
+      for (const layout of generateColumnLayouts()) {
+        const stats = computeContainCoverage(layout);
+        if (stats) { stats.tag = 'mixedCols'; candidates.push(stats); }
+      }
+      const fallback = singleRow.length === N ? singleRow : grid2x2;
+      if (!candidates.length) return fallback.length === N ? fallback : grid2x2;
+      candidates.sort((a, b) => {
+        if (Math.abs(b.coverage - a.coverage) > 1e-6) return b.coverage - a.coverage;
+        return b.fill - a.fill;
+      });
+      const best = candidates[0];
+      const chosen = best.layout.slice();
+      chosen._tag = best.tag || 'grid2x2';
+      return chosen;
     }
     return pos;
   }
@@ -876,7 +1067,8 @@
     if (Nsmall <= 4) {
       const positionsSmall = buildSmallSetPositions(aspects, W, H, hgap, vgap);
       place(root, tiles, imgs, positionsSmall);
-      log('[SmallSet] layout used', { N: Nsmall });
+      const variant = positionsSmall && positionsSmall._tag;
+      log('[SmallSet] layout used', { N: Nsmall, variant: variant || 'default' });
       return;
     }
   
