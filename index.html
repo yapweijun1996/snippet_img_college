@@ -398,8 +398,8 @@
 
           const Sj = list.reduce((s, a) => s + 1 / Math.max(1e-6, a), 0); // Σ(1/a)
           if (!(Sj > 1e-6) || !Number.isFinite(Sj)) { invalid = true; break; }
-
-          const wj = H_eff / Math.max(1e-6, Sj); // 欄寬 wj，使 Σ(wj/a) + gaps = H → 滿高
+  
+          const wj = H_eff / Math.max(1e-6, Sj); // column width wj so that Σ(wj/a) + gaps = H (fills container height)
           if (!(wj > 0) || !Number.isFinite(wj)) { invalid = true; break; }
 
           // minimal image height constraint for this column
@@ -413,9 +413,9 @@
         if (invalid) { return; }
 
         const sumW = widths.reduce((s, v) => s + v, 0);
-        const neededGap = (C > 1) ? (W - sumW) / (C - 1) : 0; // 讓總寬 + gap*(C-1) 精確 = W
+        const neededGap = (C > 1) ? (W - sumW) / (C - 1) : 0; // make total widths + gap*(C-1) exactly equal to W
 
-        // 若 neededGap 為負，代表以滿高無法鋪滿寬度 → 此欄數不可行，跳過
+        // If neededGap is negative, filling by height cannot cover the width → this column count is infeasible, skip
         if (neededGap < -1e-6) {
           return;
         }
@@ -437,7 +437,7 @@
         log('[ColumnNoCrop] compositions truncated', { C, visited: ctrl.count });
       }
 
-      // 若已找到可行解且 gap 非負，即可提前結束（偏好較多欄的可行解）
+      // If a feasible solution with non-negative gap is found, break early (prefer solutions with more columns)
       if (best) break;
     }
 
@@ -1157,7 +1157,7 @@
     const flow = (root.dataset.flow || 'auto').toLowerCase(); // 'auto' | 'col' | 'row'
     const imgsCount = root.querySelectorAll('img').length;
     const defGap = imgsCount > 20 ? 2 : 4;
-    const minUtil = clampRange(getDataNumber(root.dataset, ['minutil'], 0.88), 0, 1); // 利用率門檻（預設 0.88）
+    const minUtil = clampRange(getDataNumber(root.dataset, ['minutil'], 0.88), 0, 1); // utilization threshold (default 0.88)
     const minImgH = clampNonNeg(getDataNumber(root.dataset, ['minimg','minimageheight'], 24));
 
     const autoCols = (function(){
