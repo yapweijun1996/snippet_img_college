@@ -54,12 +54,12 @@
 
 <h3>Image Collage - Fixed 640x500 (No Crop) — Column-first flow enabled</h3>
 
-<!-- Explanation:
-  - data-flow="col" → Column-first layout (height-priority): place images top-to-bottom, then left-to-right (fills container height). Good for uneven counts like 19/20.
-  - data-flow can be switched to "row" → Use BalancedNoCrop row-based layout (width-priority, equal row heights).
-  - data-mincols / data-maxcols → Search range for number of columns (used by column mode).
-  - data-hgap / data-vgap → Horizontal and vertical gaps between columns/images.
-  - data-minutil → Minimum utilization threshold for column mode (0..1, default 0.88). If below threshold, automatically fallback to row mode to fill empty space.
+<!-- 說明：
+  - data-flow="col" → 以「高度優先、由上到下，再由左到右」的欄式排法（滿高），適合 19/20 張等不等量
+  - data-flow 可切換為 "row" → 使用 BalancedNoCrop 的等高列式排法（滿寬）
+  - data-mincols / data-maxcols → 欄數搜尋範圍（欄式）
+  - data-hgap / data-vgap → 欄間與圖間間距
+  - data-minutil → 欄式利用率門檻（0~1，預設 0.88），低於門檻自動改用 row 方案以「自動補滿空白」
 -->
 <div
   class="img_collage"
@@ -176,9 +176,9 @@
 <script>
 /*!
  * ColumnNoCrop v1.0 + BalancedNoCrop v4.0
- * - ColumnNoCrop (height-priority, column mode): fills container height; place images top-to-bottom then left-to-right. Columns exactly fill H, no cropping, no distortion.
- *   Stable for uneven counts such as N=19/20. Automatically searches for column count and per-column image distribution. Extra horizontal space is allocated to column gaps to avoid uneven seams.
- * - BalancedNoCrop (width-priority, row mode): fills width with consistent row heights; previous versions demonstrated >95% utilization.
+ * - ColumnNoCrop（高度優先、欄式）：由上到下，再由左到右；每欄恰好填滿 H，不裁剪，不變形
+ *   對 N=19/20 等不等量都穩定；自動搜索欄數與每欄張數分配，將橫向剩餘寬度分配到欄間距，避免水平留白帶來縫隙不齊
+ * - BalancedNoCrop（寬度優先、列式）：滿寬、列高一致，已在前版驗證 >95% 利用率
  */
 (function(){
   "use strict";
@@ -333,7 +333,7 @@
 
   // ---------- ColumnNoCrop: compositions generator ----------
   function generateCompositions(n, k, cb, control) {
-    // Generate compositions of k positive integers that sum to n; stream via callback to avoid large memory usage
+    // 產生 k 個正整數之組合，其和 = n；串流回呼避免大量內存
     control = control || {};
     const now = (typeof performance !== 'undefined' && performance.now) ? () => performance.now() : () => Date.now();
     const deadline = Number.isFinite(control.deadline) ? control.deadline : Infinity;
@@ -372,17 +372,17 @@
     log('[ColumnNoCrop] Start', {W,H,N:aspects.length, minCols, maxCols});
     let best = null;
 
-    // Compute feasible range for number of columns: cannot exceed N; allow values below minCols to ensure a solution when N is small or width is constrained
+    // 計算可行欄數範圍：最多不超過 N；允許低於 minCols 以確保可解（例如 N 小或寬度不足時）
     const N = aspects.length;
     const cMax = Math.min(Math.max(minCols, maxCols), N);
     const cMin = 1;
     const nowFn = (typeof performance !== 'undefined' && performance.now) ? () => performance.now() : () => Date.now();
 
-    // Prefer trying more columns first; if none are feasible, reduce the column count stepwise (avoids negative gaps)
+    // 優先嘗試較多欄，若無可行則逐步降欄（避免負 gap）
     for (let C = cMax; C >= cMin; C--) {
       const ctrl = { limit: 200000, deadline: nowFn() + 12 };
       generateCompositions(N, C, (counts) => {
-        // In input order: fill top-to-bottom, then move to the next column
+        // 依輸入順序：上到下 → 下一欄
         let idx = 0;
         const cols = [];
         const widths = [];
@@ -420,7 +420,7 @@
           return;
         }
 
-        // Scoring: prefer neededGap close to target hgap, balanced column widths, higher utilization, and a preferred column count
+        // 打分：gap 接近期望值、欄寬均衡 + 更高利用率 + 列數偏好
         const meanW = sumW / C;
         const varW = widths.reduce((s, v) => s + (v - meanW) * (v - meanW), 0) / C;
         const usedArea = widths.reduce((s, w, j) => s + w * Math.max(0, H - vgap * Math.max(0, counts[j] - 1)), 0);
@@ -916,7 +916,7 @@
     return pos;
   }
   
-  // ---------- BalancedNoCrop (kept as row-direction fallback / switching option) ----------
+  // ---------- BalancedNoCrop（保留，作 row 方向後備/切換） ----------
   function balancedPartition(aspects, rows) {
     const idxs = aspects.map((_, i) => i).sort((a, b) => aspects[b] - aspects[a]);
     const sums = new Array(rows).fill(0);
@@ -1090,7 +1090,7 @@
     const first = !root.__laid;
     for (let p = 0; p < positions.length; p++) {
       const P = positions[p];
-      const i = (P.idx != null) ? P.idx : p; // supports both position formats
+      const i = (P.idx != null) ? P.idx : p; // 支援兩種格式
       const el = imgs[i];
       const tile = tiles[i];
       if (!el || !tile) continue;
@@ -1212,7 +1212,7 @@
         const util = used / (W * H);
         log('[ColumnNoCrop] Utilization', (util * 100).toFixed(2) + '%');
 
-        // If column-mode utilization is too low → automatically switch to row mode to fill empty space
+        // 若欄式利用率太低 → 自動改用 row 方案以補滿空白
         if (util >= effMinUtil) {
           place(root, tiles, imgs, positions);
           log('[ColumnNoCrop] === 佈局完成 ===');
@@ -1221,7 +1221,7 @@
           log('[ColumnNoCrop] 利用率低於門檻，回退 BalancedNoCrop', {minUtil: effMinUtil});
         }
       } else {
-        // If no feasible solution, fallback to row mode
+        // 若無可行，回退 row
         log('[ColumnNoCrop] 無解，回退 BalancedNoCrop');
       }
     }
