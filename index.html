@@ -1204,7 +1204,7 @@
     }
   
     if (flow === 'col' || flow === 'column' || flow === 'bycol' || flow === 'auto') {
-      log('[ColumnNoCrop] === 開始佈局 ===');
+      log('[ColumnNoCrop] === Begin layout ===');
       const best = solveColumnNoCrop(aspects, W, H, hgap, vgap, minCols, maxCols, minImgH);
       if (best) {
         const positions = buildColumnPositions(best, W, H, hgap, vgap);
@@ -1215,19 +1215,19 @@
         // If column-mode utilization is too low → automatically switch to row mode to fill empty space
         if (util >= effMinUtil) {
           place(root, tiles, imgs, positions);
-          log('[ColumnNoCrop] === 佈局完成 ===');
+          log('[ColumnNoCrop] === Layout complete ===');
           return;
         } else {
-          log('[ColumnNoCrop] 利用率低於門檻，回退 BalancedNoCrop', {minUtil: effMinUtil});
+          log('[ColumnNoCrop] Utilization below threshold, falling back to BalancedNoCrop', {minUtil: effMinUtil});
         }
       } else {
         // If no feasible solution, fallback to row mode
-        log('[ColumnNoCrop] 無解，回退 BalancedNoCrop');
+        log('[ColumnNoCrop] No feasible solution, falling back to BalancedNoCrop');
       }
     }
 
-    // Row fallback / 或 flow=row
-    log('[BalancedNoCrop] === 開始佈局 ===');
+    // Row fallback / or flow=row
+    log('[BalancedNoCrop] === Begin layout ===');
     const style = (root.dataset.style || '').toLowerCase();
     let jitter = getDataNumber(root.dataset, ['jitter'], NaN);
     let pboost = getDataNumber(root.dataset, ['portraitboost'], NaN);
@@ -1252,7 +1252,7 @@
     if (sol) {
       place(root, tiles, imgs, sol.pos);
       log('[BalancedNoCrop] Utilization', (sol.util * 100).toFixed(2) + '%');
-      log('[BalancedNoCrop] === 佈局完成 ===');
+      log('[BalancedNoCrop] === Layout complete ===');
     }
   }
 
